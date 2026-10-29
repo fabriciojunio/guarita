@@ -113,5 +113,5 @@ class ModeloOllama:
         pedido = urllib.request.Request(  # noqa: S310
             self.endereco + "/api/chat", data=json.dumps(corpo).encode(), headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(pedido, timeout=self.tempo_limite) as resposta:  # noqa: S310
+        with urllib.request.urlopen(pedido, timeout=self.tempo_limite) as resposta:  # noqa: S310  # nosemgrep
             return de_resposta_ollama(json.load(resposta))
