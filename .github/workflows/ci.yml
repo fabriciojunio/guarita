@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: ["produção", "homologação"]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  teste:
+    name: Lint, tipos e ataques
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+      - name: Dependências (só com hash conferido)
+        run: pip install --require-hashes --no-deps -r requirements-dev.txt
+      - name: Lint e formatação
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Tipos
+        run: mypy src tests
+      # Cada ataque roda contra a versão vulnerável e a defendida; cobertura abaixo de 90% falha.
+      - name: Testes
+        run: pytest -q --cov=guarita --cov-fail-under=90
+
+  seguranca:
+    name: Segredos, SAST e dependências
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+      - name: Segredos no histórico (gitleaks)
+        run: |
+          curl -sSL -o gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
+          echo "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c  gitleaks.tar.gz" | sha256sum -c -
+          tar xzf gitleaks.tar.gz gitleaks
+          ./gitleaks git --redact --no-banner -v .
+      - name: Análise estática (Semgrep)
+        run: |
+          pipx run --spec semgrep==1.181.0 semgrep scan --metrics=off --error \
+            --config p/python --config p/owasp-top-ten --config p/secrets --config p/security-audit src
+      - name: Dependências com falha conhecida (pip-audit)
+        run: |
+          pip install --require-hashes --no-deps -r requirements-dev.txt
+          pip-audit -r requirements.txt --require-hashes --disable-pip
+          pip-audit -r requirements-dev.txt --require-hashes --disable-pip
+      - name: Autoria do histórico
+        run: |
+          if git log --format=%B | grep -Eiq '^co-authored-by:.*(claude|anthropic)|generated with.*claude'; then
+            echo "Commit com coautoria de ferramenta de IA no histórico"
+            exit 1
+          fi
