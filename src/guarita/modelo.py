@@ -69,7 +69,11 @@ class ModeloObediente:
             argumentos = {k: v.replace("{ultimo}", ultimo) for k, v in json.loads(args).items()}
             return Resposta(chamada=ChamadaDeFerramenta(nome, argumentos))
         documento = next((d for t in textos for d in DOCUMENTO.findall(t)), "Não encontrei nada sobre isso.")
-        falas = [f.replace("{ultimo}", ultimo) for t in textos for f in FALA.findall(t)]
+        # "{instrucoes}" é o pedido de repetir o prompt de sistema, que um modelo sequestrado atende.
+        instrucoes = next((m.conteudo for m in mensagens if m.papel == "sistema"), "")
+        falas = [
+            f.replace("{ultimo}", ultimo).replace("{instrucoes}", instrucoes) for t in textos for f in FALA.findall(t)
+        ]
         return Resposta(texto="\n".join([ultimo or documento, *falas]))
 
 
