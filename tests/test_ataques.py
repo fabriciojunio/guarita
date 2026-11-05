@@ -230,6 +230,8 @@ def envenenar_descricao(servidor: MCPServer) -> None:
 
 def eventos(caplog: pytest.LogCaptureFixture, decisao: str | None = None) -> list[dict[str, str]]:
     registros = [json.loads(r.getMessage()) for r in caplog.records if r.name == "guarita.auditoria"]
+    for r in registros:
+        assert r.pop("momento").endswith("+00:00"), "o momento da auditoria tem que estar em UTC"
     return [r for r in registros if decisao is None or r["decisao"] == decisao]
 
 

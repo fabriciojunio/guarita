@@ -5,6 +5,7 @@ import logging
 import secrets
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from mcp import Client
 from mcp.types import TextContent, Tool
@@ -107,4 +108,7 @@ class Agente:
 
     def _auditar(self, ferramenta: str, decisao: str) -> None:
         # Argumentos ficam fora do log: podem ter dado pessoal, e o que importa é quem fez o quê.
-        auditoria.info(json.dumps({"usuario": self.sessao.usuario, "ferramenta": ferramenta, "decisao": decisao}))
+        # O momento em UTC é o que deixa a detecção contar tentativas dentro de uma janela de tempo.
+        momento = datetime.now(UTC).isoformat(timespec="seconds")
+        evento = {"momento": momento, "usuario": self.sessao.usuario, "ferramenta": ferramenta, "decisao": decisao}
+        auditoria.info(json.dumps(evento, ensure_ascii=False))
