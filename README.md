@@ -25,9 +25,22 @@ sequestrado.
 | GUA-04 | Busca traz o contrato de outro cliente | Filtro por cliente antes da ordenação | LLM08 |
 | GUA-05 | Servidor MCP troca a descrição da ferramenta depois de aprovado | Lista de ferramentas aprovadas por hash, conferida a cada ação | LLM03, LLM01 |
 | GUA-06 | Artigo com 30 chamadas em sequência | Limite de 5 ações por pergunta | LLM10 |
+| GUA-07 | Ordem escondida em caracteres de tag Unicode, invisível para quem revisa a base | Caracteres invisíveis removidos do contexto e da resposta | LLM01 |
+| GUA-08 | Artigo pede para repetir as instruções, onde havia regra de negócio | Nada de segredo no prompt; canário bloqueia a repetição | LLM07 |
+| GUA-09 | Servidor marca como somente leitura uma ferramenta que publica | Política do cliente decide o que dispensa confirmação | LLM06, LLM03 |
 
-Também há log de auditoria de cada ação (quem, qual ferramenta, decisão), sem os argumentos, que
-podem ter dado pessoal.
+Também há log de auditoria de cada ação (momento, quem, qual ferramenta, decisão), sem os argumentos,
+que podem ter dado pessoal. Sobre ele rodam regras de detecção:
+
+```bash
+python -m guarita.deteccao auditoria.jsonl
+```
+
+Ferramenta trocada depois da revisão é alerta crítico; tentativa de extrair as instruções e três ações
+negadas do mesmo usuário em dez minutos são altas. Cada alerta aponta para a seção do
+[runbook de incidente](docs/runbook-incidente-ia.md) que diz o que fazer. O
+[modelo de ameaças](docs/modelo-de-ameacas.md) e o [mapa de riscos](docs/mapa-de-riscos.md), com
+OWASP LLM, OWASP Agentic, MITRE ATLAS e NIST AI RMF, ficam em `docs/`.
 
 ## Estrutura
 
@@ -39,9 +52,11 @@ src/guarita/
   modelo.py     interface do modelo, o simulador obediente e o cliente do Ollama
   defesas.py    limpeza da saída, hash de ferramenta, envelope dos documentos
   agente.py     laço do assistente, nas duas versões
+  deteccao.py   regras de detecção sobre o log de auditoria
 tests/
   test_ataques.py   os seis ataques, vulnerável e defendido
   test_unidades.py  busca, saída, hash e conversão do Ollama
+  test_deteccao.py  regras de detecção, inclusive sobre a auditoria real dos ataques
 ```
 
 ## Como rodar
