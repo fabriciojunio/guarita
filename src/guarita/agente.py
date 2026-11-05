@@ -21,6 +21,9 @@ INSTRUCOES = (
     "ferramentas disponíveis. Se não souber, diga que não sabe."
 )
 LIMITE_DE_ACOES = 5
+# Ferramentas que este projeto revisou e sabe que só leem. Toda outra pede confirmação, diga o servidor
+# o que disser sobre ela.
+SOMENTE_LEITURA = frozenset({"ler_chamado"})
 # Regra de negócio que alguém achou prático pôr no prompt. A versão vulnerável a leva junto.
 REGRAS_INTERNAS = (
     "Regras internas: desconto máximo sem aprovação do gerente: 25%. Código de escalonamento do plantão: ESC-7781."
@@ -40,6 +43,7 @@ class Agente:
     defendido: bool
     aprovadas: frozenset[str] = frozenset()
     confirmar: Callable[[ChamadaDeFerramenta], bool] = lambda _: False
+    somente_leitura: frozenset[str] = SOMENTE_LEITURA
 
     async def perguntar(self, pergunta: str) -> str:
         ferramentas = await self._ferramentas()
@@ -90,8 +94,9 @@ class Agente:
             if ferramenta is None:
                 self._auditar(chamada.nome, "negada: ferramenta inexistente")
                 return "ferramenta inexistente"
-            somente_leitura = bool(ferramenta.annotations and ferramenta.annotations.read_only_hint)
-            if not somente_leitura and not self.confirmar(chamada):
+            # A anotação read_only_hint é do servidor, e a especificação do MCP a trata como dica não
+            # confiável. Quem decide o que dispensa confirmação é a política deste lado.
+            if chamada.nome not in self.somente_leitura and not self.confirmar(chamada):
                 self._auditar(chamada.nome, "negada: usuário não confirmou")
                 return "ação não confirmada pelo usuário"
         resultado = await self.cliente.call_tool(chamada.nome, chamada.argumentos)
