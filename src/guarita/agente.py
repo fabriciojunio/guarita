@@ -100,8 +100,15 @@ class Agente:
         resultado = await self.cliente.call_tool(chamada.nome, chamada.argumentos)
         self._auditar(chamada.nome, "erro" if resultado.is_error else "executada")
         texto = "\n".join(c.text for c in resultado.content if isinstance(c, TextContent))
+        if not self.defendido:
+            return texto
         # O resultado da ferramenta também é texto de fora: um chamado pode ter sido aberto pelo atacante.
-        return remover_invisiveis(texto) if self.defendido else texto
+        texto = remover_invisiveis(texto)
+        limite = self.politica.limite_do_resultado
+        if len(texto) > limite:
+            # O corte avisa o modelo, para ele não responder como se tivesse lido tudo.
+            texto = f"{texto[:limite]}\n[resultado cortado: {limite} de {len(texto)} caracteres]"
+        return texto
 
     def _auditar(self, ferramenta: str, decisao: str) -> None:
         # Argumentos ficam fora do log: podem ter dado pessoal, e o que importa é quem fez o quê.

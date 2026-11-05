@@ -359,3 +359,11 @@ async def test_gua10_resultado_gigante_entra_inteiro_no_contexto_na_versao_vulne
         espiao = await com_anexo_gigante(c)
         await c.agente.perguntar("Tem anexo no boleto?")
     assert espiao.maior_resultado == len(ANEXO_GIGANTE) > 200_000
+
+
+async def test_gua10_defendida_corta_o_resultado_no_limite_da_politica() -> None:
+    async with montar(defendido=True, extras=[ARTIGO_ANEXO], confirmar=lambda _: True) as c:
+        espiao = await com_anexo_gigante(c)
+        await c.agente.perguntar("Tem anexo no boleto?")
+        limite = c.agente.politica.limite_do_resultado
+    assert limite < espiao.maior_resultado <= limite + 80
