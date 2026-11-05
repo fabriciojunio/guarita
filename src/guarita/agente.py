@@ -10,7 +10,7 @@ from mcp.types import TextContent, Tool
 
 from guarita.busca import buscar
 from guarita.dados import Documento, Sessao
-from guarita.defesas import envelopar, impressao_digital, limpar_saida
+from guarita.defesas import envelopar, impressao_digital, limpar_saida, remover_invisiveis
 from guarita.modelo import ChamadaDeFerramenta, Mensagem, Modelo
 
 auditoria = logging.getLogger("guarita.auditoria")
@@ -78,7 +78,9 @@ class Agente:
                 return "ação não confirmada pelo usuário"
         resultado = await self.cliente.call_tool(chamada.nome, chamada.argumentos)
         self._auditar(chamada.nome, "erro" if resultado.is_error else "executada")
-        return "\n".join(c.text for c in resultado.content if isinstance(c, TextContent))
+        texto = "\n".join(c.text for c in resultado.content if isinstance(c, TextContent))
+        # O resultado da ferramenta também é texto de fora: um chamado pode ter sido aberto pelo atacante.
+        return remover_invisiveis(texto) if self.defendido else texto
 
     def _auditar(self, ferramenta: str, decisao: str) -> None:
         # Argumentos ficam fora do log: podem ter dado pessoal, e o que importa é quem fez o quê.

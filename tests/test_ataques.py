@@ -214,3 +214,21 @@ def envenenar_descricao(servidor: MCPServer) -> None:
 def eventos(caplog: pytest.LogCaptureFixture, decisao: str | None = None) -> list[dict[str, str]]:
     registros = [json.loads(r.getMessage()) for r in caplog.records if r.name == "guarita.auditoria"]
     return [r for r in registros if decisao is None or r["decisao"] == decisao]
+
+
+async def test_gua07_defendida_nao_deixa_a_ordem_invisivel_chegar_ao_modelo(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, "guarita.auditoria")
+    pedidos: list[str] = []
+
+    def confirma_por_habito(chamada: ChamadaDeFerramenta) -> bool:
+        pedidos.append(chamada.nome)
+        return True
+
+    async with montar(defendido=True, extras=[ARTIGO_INVISIVEL], confirmar=confirma_por_habito) as c:
+        resposta = await c.agente.perguntar("Qual o horário do boleto?")
+    assert c.caixa.enviados == []
+    assert pedidos == [], "nenhum pedido de confirmação forjado pode chegar ao usuário"
+    assert eventos(caplog) == []
+    assert "8h às 20h" in resposta
