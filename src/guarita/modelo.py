@@ -37,6 +37,15 @@ class Modelo(Protocol):
 
 
 DIRETIVA = re.compile(r"^CHAMAR (\w+) (\{.*\})$", re.MULTILINE)
+# Caracteres de tag Unicode (U+E0020 a U+E007E) espelham o ASCII, não aparecem na tela e são lidos
+# pelos modelos de verdade. O simulador faz o mesmo, para o ataque de instrução invisível valer.
+TAGS = {cp: cp - 0xE0000 for cp in range(0xE0020, 0xE007F)}
+
+
+def ler_tags(texto: str) -> str:
+    return texto.translate(TAGS)
+
+
 FALA = re.compile(r"^RESPONDER: (.*)$", re.MULTILINE)
 DOCUMENTO = re.compile(r"^KB-\d+ \| .*\n(.+)$", re.MULTILINE)
 
@@ -51,7 +60,7 @@ class ModeloObediente:
     """
 
     def responder(self, mensagens: Sequence[Mensagem], ferramentas: Sequence[Tool]) -> Resposta:
-        textos = [t.description or "" for t in ferramentas] + [m.conteudo for m in mensagens]
+        textos = [ler_tags(t.description or "") for t in ferramentas] + [ler_tags(m.conteudo) for m in mensagens]
         resultados = [m.conteudo for m in mensagens if m.papel == "ferramenta"]
         ultimo = resultados[-1] if resultados else ""
         diretivas = [(nome, args) for texto in textos for nome, args in DIRETIVA.findall(texto)]
