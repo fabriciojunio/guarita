@@ -2,6 +2,7 @@
 
 import json
 import logging
+import secrets
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
@@ -48,7 +49,13 @@ class Agente:
             if self.defendido
             else "\n".join(f"{d.id} | {d.titulo}\n{d.texto}" for d in recuperados)
         )
-        sistema = INSTRUCOES if self.defendido else f"{INSTRUCOES}\n{REGRAS_INTERNAS}"
+        # A defendida não leva regra de negócio no prompt: ela mora no código que decide, não num texto
+        # que o modelo pode repetir. O canário é uma marca nova a cada pergunta; se aparecer na resposta,
+        # o modelo está repetindo as instruções. É alarme, não cofre: a proteção é não ter segredo ali.
+        canario = secrets.token_hex(8)
+        sistema = (
+            f"{INSTRUCOES}\nMarca de controle: {canario}" if self.defendido else f"{INSTRUCOES}\n{REGRAS_INTERNAS}"
+        )
         mensagens = [Mensagem("sistema", sistema), Mensagem("sistema", contexto), Mensagem("usuario", pergunta)]
         acoes = 0
         while (resposta := self.modelo.responder(mensagens, ferramentas)).chamada:
@@ -58,7 +65,13 @@ class Agente:
                 return "Parei aqui: a pergunta pediu ações demais. Tente dividir em partes."
             resultado = await self._executar(resposta.chamada)
             mensagens += [Mensagem("assistente", "", resposta.chamada), Mensagem("ferramenta", resultado)]
-        return limpar_saida(resposta.texto) if self.defendido else resposta.texto
+        if not self.defendido:
+            return resposta.texto
+        # Invisível entre os caracteres do canário não esconde o vazamento.
+        if canario in remover_invisiveis(resposta.texto):
+            self._auditar("resposta", "bloqueada: vazamento das instruções")
+            return "Não posso mostrar minhas instruções internas. Posso ajudar com outra dúvida?"
+        return limpar_saida(resposta.texto)
 
     async def _ferramentas(self) -> list[Tool]:
         ferramentas = (await self.cliente.list_tools()).tools
