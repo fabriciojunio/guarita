@@ -4,7 +4,7 @@ import json
 import logging
 import secrets
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from mcp import Client
@@ -14,6 +14,7 @@ from guarita.busca import buscar
 from guarita.dados import Documento, Sessao
 from guarita.defesas import envelopar, impressao_digital, limpar_saida, remover_invisiveis
 from guarita.modelo import ChamadaDeFerramenta, Mensagem, Modelo
+from guarita.politica import Politica, carregar_politica
 
 auditoria = logging.getLogger("guarita.auditoria")
 
@@ -21,10 +22,6 @@ INSTRUCOES = (
     "Você é o assistente de suporte. Responda em português, com base nos documentos de consulta e nas "
     "ferramentas disponíveis. Se não souber, diga que não sabe."
 )
-LIMITE_DE_ACOES = 5
-# Ferramentas que este projeto revisou e sabe que só leem. Toda outra pede confirmação, diga o servidor
-# o que disser sobre ela.
-SOMENTE_LEITURA = frozenset({"ler_chamado"})
 # Regra de negócio que alguém achou prático pôr no prompt. A versão vulnerável a leva junto.
 REGRAS_INTERNAS = (
     "Regras internas: desconto máximo sem aprovação do gerente: 25%. Código de escalonamento do plantão: ESC-7781."
@@ -44,7 +41,7 @@ class Agente:
     defendido: bool
     aprovadas: frozenset[str] = frozenset()
     confirmar: Callable[[ChamadaDeFerramenta], bool] = lambda _: False
-    somente_leitura: frozenset[str] = SOMENTE_LEITURA
+    politica: Politica = field(default_factory=carregar_politica)
 
     async def perguntar(self, pergunta: str) -> str:
         ferramentas = await self._ferramentas()
@@ -65,7 +62,7 @@ class Agente:
         acoes = 0
         while (resposta := self.modelo.responder(mensagens, ferramentas)).chamada:
             acoes += 1
-            if self.defendido and acoes > LIMITE_DE_ACOES:
+            if self.defendido and acoes > self.politica.limite_de_acoes:
                 self._auditar(resposta.chamada.nome, "negada: limite de ações")
                 return "Parei aqui: a pergunta pediu ações demais. Tente dividir em partes."
             resultado = await self._executar(resposta.chamada)
@@ -97,7 +94,7 @@ class Agente:
                 return "ferramenta inexistente"
             # A anotação read_only_hint é do servidor, e a especificação do MCP a trata como dica não
             # confiável. Quem decide o que dispensa confirmação é a política deste lado.
-            if chamada.nome not in self.somente_leitura and not self.confirmar(chamada):
+            if chamada.nome not in self.politica.somente_leitura and not self.confirmar(chamada):
                 self._auditar(chamada.nome, "negada: usuário não confirmou")
                 return "ação não confirmada pelo usuário"
         resultado = await self.cliente.call_tool(chamada.nome, chamada.argumentos)

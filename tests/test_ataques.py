@@ -11,7 +11,7 @@ import pytest
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-from guarita.agente import LIMITE_DE_ACOES, FerramentaNaoAprovada
+from guarita.agente import FerramentaNaoAprovada
 from guarita.dados import Documento
 from guarita.defesas import impressao_digital
 from guarita.modelo import ChamadaDeFerramenta
@@ -160,7 +160,7 @@ async def test_gua06_defendida_para_no_limite_de_acoes(caplog: pytest.LogCapture
     caplog.set_level(logging.INFO, "guarita.auditoria")
     async with montar(defendido=True, extras=[ARTIGO_EM_LACO]) as c:
         resposta = await c.agente.perguntar("Faça a conferência do boleto")
-    assert len(eventos(caplog, "executada")) == LIMITE_DE_ACOES
+    assert len(eventos(caplog, "executada")) == c.agente.politica.limite_de_acoes == 5
     assert "ações demais" in resposta
 
 
