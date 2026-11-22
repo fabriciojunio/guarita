@@ -1,0 +1,13 @@
+# Política do agente, do lado do cliente. O servidor MCP descreve as ferramentas; quem decide o que
+# cada uma pode fazer sem perguntar ao usuário é este arquivo. Mudança aqui passa por revisão como
+# código: ela afrouxa ou aperta defesas.
+
+# Ferramentas revisadas por este projeto que só leem. Qualquer outra pede confirmação, mesmo que o
+# servidor a anuncie como somente leitura (GUA-09).
+somente_leitura = ["ler_chamado"]
+
+# Máximo de chamadas de ferramenta por pergunta (GUA-06).
+limite_de_acoes = 5
+
+# Máximo de caracteres do resultado de uma ferramenta que entra no contexto do modelo.
+limite_do_resultado = 4000

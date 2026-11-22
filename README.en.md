@@ -24,9 +24,22 @@ The ones kept in the project hold with the model fully hijacked.
 | GUA-04 | Retrieval returns another customer's contract | Customer filter applied before ranking | LLM08 |
 | GUA-05 | The MCP server changes a tool description after approval | Allow-list of approved tools by hash, checked before every action | LLM03, LLM01 |
 | GUA-06 | Article with 30 chained calls | Limit of 5 actions per question | LLM10 |
+| GUA-07 | Order hidden in Unicode tag characters, invisible to whoever reviews the knowledge base | Invisible characters removed from the context and the answer | LLM01 |
+| GUA-08 | Article asks to repeat the instructions, which held a business rule | No secret in the prompt; a canary blocks the repetition | LLM07 |
+| GUA-09 | Server marks as read-only a tool that publishes | Client-side policy decides what skips confirmation | LLM06, LLM03 |
 
-Every action is also written to an audit log (who, which tool, decision), without the arguments,
-which may hold personal data.
+Every action is also written to an audit log (time, who, which tool, decision), without the
+arguments, which may hold personal data. Detection rules run on it:
+
+```bash
+python -m guarita.deteccao auditoria.jsonl
+```
+
+A tool changed after review is a critical alert; an attempt to extract the instructions and three
+denied actions by the same user within ten minutes are high. Each alert points to the section of the
+[incident runbook](docs/runbook-incidente-ia.md) (Portuguese) that says what to do. The
+[threat model](docs/modelo-de-ameacas.md) and the [risk map](docs/mapa-de-riscos.md), covering OWASP
+LLM, OWASP Agentic, MITRE ATLAS and NIST AI RMF, are in `docs/` (Portuguese).
 
 ## Layout
 
@@ -38,9 +51,11 @@ src/guarita/
   modelo.py     model interface, the obedient simulator and the Ollama client
   defesas.py    output cleaning, tool hashing, document envelope
   agente.py     assistant loop, in both versions
+  deteccao.py   detection rules on the audit log
 tests/
   test_ataques.py   the six attacks, vulnerable and defended
   test_unidades.py  retrieval, output, hashing and Ollama conversion
+  test_deteccao.py  detection rules, including on the real audit of the attacks
 ```
 
 ## Running

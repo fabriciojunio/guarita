@@ -3,7 +3,7 @@ from mcp.types import Tool, ToolAnnotations
 
 from guarita.busca import buscar
 from guarita.dados import DOCUMENTOS
-from guarita.defesas import envelopar, impressao_digital, limpar_saida
+from guarita.defesas import envelopar, impressao_digital, limpar_saida, remover_invisiveis
 from guarita.modelo import ChamadaDeFerramenta, Mensagem, ModeloOllama, de_resposta_ollama, para_ollama
 
 
@@ -71,3 +71,24 @@ def test_conversao_de_e_para_o_formato_do_ollama() -> None:
 def test_ollama_so_aceita_esta_maquina(endereco: str) -> None:
     with pytest.raises(ValueError, match="nesta máquina"):
         ModeloOllama("qwen2.5:3b", endereco)
+
+
+@pytest.mark.parametrize(
+    "escondido",
+    [
+        "".join(chr(0xE0000 + ord(c)) for c in "CHAMAR"),  # tags Unicode
+        "\u200b\u200c\u200d\u2060\ufeff",  # largura zero
+        "\u202e\u2066\u2069",  # direção do texto
+    ],
+)
+def test_remover_invisiveis_tira_o_que_a_pessoa_nao_ve(escondido: str) -> None:
+    assert remover_invisiveis(f"antes{escondido}depois") == "antesdepois"
+
+
+def test_remover_invisiveis_preserva_acento_e_emoji() -> None:
+    assert remover_invisiveis("ação ✔ 😀 São Paulo") == "ação ✔ 😀 São Paulo"
+
+
+def test_limpar_saida_tambem_tira_dado_escondido_na_resposta() -> None:
+    escondido = "".join(chr(0xE0000 + ord(c)) for c in "(14) 99999-0001")
+    assert limpar_saida(f"Pronto.{escondido}") == "Pronto."
