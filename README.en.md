@@ -87,8 +87,3 @@ wait.
   token, which is not implemented here.
 - Email sending is simulated.
 - The document envelope (`envelopar`) is not counted as a defence, because it was not measured.
-
-## Use of AI
-
-This project was structured with the support of generative AI tools. Modelling, business rules,
-code review and conclusions were reviewed and validated by Fabrício Júnio.
