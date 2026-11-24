@@ -88,8 +88,3 @@ espera.
   OAuth validado, e isso não está implementado aqui.
 - O envio de e-mail é simulado.
 - O envelope dos documentos (`envelopar`) não é contado como defesa, porque não foi medido.
-
-## Uso de IA
-
-Este projeto foi estruturado com apoio de ferramentas de IA generativa. Modelagem, regras de
-negócio, revisão do código e conclusões foram revisadas e validadas por Fabrício Júnio.
